@@ -243,7 +243,7 @@ class D_PHI():
         # Set a reference point to calculate HV values
         reference_point = self.c2 - self.epsilon_r
 
-        df_objs = self.df(objs) # Calculate the desirability function value of all solutions (transfer solutions)
+        df_objs = self.df() # Calculate the desirability function value of all solutions (transfer solutions)
 
         index_nondominated = non_dominated(df_objs)  # Ensure that the transferred solutions are non-dominated solutions
         df_non_dominated = df_objs[index_nondominated]
@@ -252,7 +252,7 @@ class D_PHI():
         hv = Hypervolume(-reference_point)
         dphi = hv(-df_non_dominated)  # D-PHI value
 
-        asf = self.ASF_value(objs)
+        asf = self.ASF_value()
         index_asf = np.argmin(asf)
         ci = -min(asf)  # CI (complementary indicator) value
 
