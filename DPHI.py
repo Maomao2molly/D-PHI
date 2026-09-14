@@ -245,7 +245,7 @@ class D_PHI():
 
         df_objs = self.df() # Calculate the desirability function value of all solutions (transfer solutions)
 
-        index_nondominated = non_dominated(df_objs)  # Ensure that the transferred solutions are non-dominated solutions
+        index_nondominated = non_dominated(-df_objs)  # Ensure that the transferred solutions are non-dominated solutions
         df_non_dominated = df_objs[index_nondominated]
 
 
