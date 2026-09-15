@@ -14,24 +14,24 @@ class D_PHI():
         reservationp : 1-D np.ndarray
             A reservation point (objective vector) consists of reservation levels ri.
 
-        c1 : 1-D np.ndarray, optional
+        c1 : float or 1-D np.ndarray, optional
             Desirability values when yi=ai, c1 = DF(ai). Defaults to 1 for all objectives.
 
-        c2 : 1-D np.ndarray, optional
+        c2 : float or 1-D np.ndarray, optional
             Desirability values when yi=ri, c2 = DF(ri). Defaults to 0 for all objectives.
 
-        epsilon_a: float, optional
+        epsilon_a: float or 1-D np.ndarray, optional
             A positive parameter used to define the upper limit of the desirability function,
             influencing the extent to which high-quality solutions (better than aspiration levels) are rewarded.
             Defaults to 0.2, then the upper limit is c1+epsilon_a = 1.2.
 
-        epsilon_r: float, optional
+        epsilon_r: float or 1-D np.ndarray, optional
             A positive parameter used to define the lower limit of the desirability function,
             influencing the extent to which low-quality solutions (worse than reservation levels) are penalized.
             Defaults to 0.2, then the lower limit is c2-epsilon_r = -0.2.
 
         delta : float, optional
-            A small value to ensure that (ai-ri) is less than 0.
+            A small positive value used when ai == ri. In this case, ai - ri is set to -delta
             (if ai=ri, ai=ri-delta. That is, delta=ri-ai, when ai=ri.)
 
 
@@ -64,20 +64,16 @@ class D_PHI():
         y = np.atleast_2d(y)  # Ensure that the calculation can be performed even when there is only one solution in the set
 
         if len(ai) != len(ri):
-            print("aspiration point and reservation point should have the same length")
-            return
+            raise ValueError("aspiration point and reservation point should have the same length")
 
-        if delta < 0:
-            print("delta should a small value greater than 0")
-            return
+        if delta <= 0:
+            raise ValueError("delta should be a small value greater than 0")
 
         if len(c1) != len(c2):
-            print("c1 and c2 should have the same length")
-            return
+            raise ValueError("c1 and c2 should have the same length")
 
         if len(epsilon_a) != len(epsilon_r):
-            print("epsilon_a and epsilon_r should have the same length")
-            return
+            raise ValueError("epsilon_a and epsilon_r should have the same length")
 
         num, dim = y.shape
 
@@ -91,8 +87,7 @@ class D_PHI():
         self.y = y
 
         if len(self.aspirationp) != 1 and len(self.aspirationp) != dim:
-            print("The length of aspiration/reservation point should be 1 or the same as the dimension of y")
-            return
+            raise ValueError("The length of aspiration/reservation point should be 1 or the same as the dimension of y")
 
         if len(self.aspirationp) == 1 and len(self.aspirationp) < dim:
             # If set the same aspiration and reservation levels for all objectives
@@ -100,13 +95,11 @@ class D_PHI():
             self.aspirationp = np.full(dim, self.aspirationp)
             self.reservationp = np.full(dim, self.reservationp)
 
-        if not np.all(self.aspirationp < self.reservationp):
-            print("All aspiration levels should be smaller than the corresponding reservation level")
-            return
+        if not np.all(self.aspirationp <= self.reservationp):
+            raise ValueError("All aspiration levels should be smaller than or equal to the corresponding reservation levels")
 
         if len(self.c1) != 1 and len(self.c1) != dim:
-            print("The length of c1/c2 should be 1 or the same as the dimension of y")
-            return
+            raise ValueError("The length of c1/c2 should be 1 or the same as the dimension of y")
 
         if len(self.c1) == 1 and len(self.c1) < dim:
             # Expand c1 and c2 so that their lengths are the same as the dimension of y
@@ -114,29 +107,24 @@ class D_PHI():
             self.c2 = np.full(dim, self.c2)
 
         if not np.all(self.c1 > self.c2):
-            print("The desirability value of the aspiration level should be greater than the desirability value of the reservation level")
-            return
+            raise ValueError("The desirability value of the aspiration level should be greater than the desirability value of the reservation level")
 
         if len(self.epsilon_a) != 1 and len(self.epsilon_a) != dim:
-            print("The length of epsilon_a/epsilon_r should be 1 or the same as the dimension of y")
-            return
+            raise ValueError("The length of epsilon_a/epsilon_r should be 1 or the same as the dimension of y")
 
         if len(self.epsilon_a) == 1 and len(self.epsilon_a) < dim:
-            # Expand c1 and c2 so that their lengths are the same as the dimension of y
+            # Expand epsilon_a and epsilon_r so that their lengths are the same as the dimension of y
             self.epsilon_a = np.full(dim, self.epsilon_a)
             self.epsilon_r = np.full(dim, self.epsilon_r)
 
 
-        if np.any(self.epsilon_a < 0) or np.any(self.epsilon_r < 0):
-            print("Epsilon_a and Epsilon_r should be positive numbers")
-            return
-
+        if np.any(self.epsilon_a <= 0) or np.any(self.epsilon_r <= 0):
+            raise ValueError("Epsilon_a and epsilon_r should be positive numbers")
 
         self.a_minus_r = self.aspirationp - self.reservationp
-        if np.any(ai == ri):
-            # ai should be smaller than ri, ensuring that ai - ri is less than 0
-            # ai=ri-delta. Then ai-ri=-delta, when ai=ri
-            self.a_minus_r = np.where(self.a_minus_r < 0, self.a_minus_r, self.delta)
+        # ai should be smaller than ri, ensuring that ai - ri is less than 0
+        # If ai == ri, set ai = ri - delta, so that ai - ri = -delta (self.delta) < 0
+        self.a_minus_r = np.where(self.a_minus_r < 0, self.a_minus_r, self.delta)
 
 
     def less_than_ai(self, y, a, r, a_minus_r, c1, c2, epsilon_a=0.2):
@@ -157,7 +145,7 @@ class D_PHI():
 
         d = y.copy().astype(float)
         for i in range(dim):
-            # Calculate desirabilty function values for solutions on each objective funtion
+            # Calculate desirability function values for solutions on each objective function
             comp = np.zeros(num)
             currenty = y[:, i]
             currentd = currenty.copy().astype(float)
@@ -190,16 +178,13 @@ class D_PHI():
         return asf
 
     def get_values(self):  # Calculate the D-PHI and CI values of the solution set
-        y = self.y
-        objs = y.copy()
-
         # Set a reference point to calculate HV values
         reference_point = self.c2 - self.epsilon_r
 
         df_objs = self.df() # Calculate the desirability function value of all solutions (transfer solutions)
 
-        hv = Hypervolume(-reference_point)
-        dphi = hv(-df_objs)  # D-PHI value
+        hv = Hypervolume(ref=reference_point, maximise=True)
+        dphi = hv(df_objs)  # D-PHI value
 
         asf = self.ASF_value()
         index_asf = np.argmin(asf)
