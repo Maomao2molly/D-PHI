@@ -1,52 +1,6 @@
 import numpy as np
 from moocore import Hypervolume
 
-# Copied from DESDEO
-# Note that this function is for minimization problems
-def dominates(x: np.ndarray, y: np.ndarray) -> bool:
-    """Returns true if x dominates y.
-
-    Args:
-        x (np.ndarray): First solution. Should be a 1-D array of numerics.
-        y (np.ndarray): Second solution. Should be the same shape as x.
-
-    Returns:
-        bool: True if x dominates y, false otherwise.
-    """
-    dom = False
-    for i in range(len(x)):
-        if x[i] > y[i]:
-            return False
-        elif x[i] < y[i]:
-            dom = True
-    return dom
-
-# Copied from DESDEO
-def non_dominated(data: np.ndarray) -> np.ndarray:
-    """Finds the non-dominated front from a population of solutions.
-
-    Args:
-        data (np.ndarray): 2-D array of solutions, with each row being a single solution.
-
-    Returns:
-        np.ndarray: Boolean array of same length as number of solutions (rows). The value is
-            true if corresponding solution is non-dominated. False otherwise
-    """
-    num_solutions = len(data)
-    index = np.zeros(num_solutions, dtype=np.bool_)
-    index[0] = True
-    for i in range(1, num_solutions):
-        index[i] = True
-        for j in range(i):
-            if not index[j]:
-                continue
-            if dominates(data[i], data[j]):
-                index[j] = False
-            elif dominates(data[j], data[i]):
-                index[i] = False
-                break
-    return index
-
 class D_PHI():
     """Calculate the D-PHI and complementary indicator (CI) values for a given solution set.
 
@@ -238,22 +192,17 @@ class D_PHI():
     def get_values(self):  # Calculate the D-PHI and CI values of the solution set
         y = self.y
         objs = y.copy()
-        # num, dim = objs.shape
 
         # Set a reference point to calculate HV values
         reference_point = self.c2 - self.epsilon_r
 
         df_objs = self.df() # Calculate the desirability function value of all solutions (transfer solutions)
 
-        index_nondominated = non_dominated(-df_objs)  # Ensure that the transferred solutions are non-dominated solutions
-        df_non_dominated = df_objs[index_nondominated]
-
-
         hv = Hypervolume(-reference_point)
-        dphi = hv(-df_non_dominated)  # D-PHI value
+        dphi = hv(-df_objs)  # D-PHI value
 
         asf = self.ASF_value()
         index_asf = np.argmin(asf)
-        ci = -min(asf)  # CI (complementary indicator) value
+        ci = -np.min(asf)  # CI (complementary indicator) value
 
         return dphi, ci
